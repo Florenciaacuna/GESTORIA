@@ -1,0 +1,40 @@
+:root {
+  --navy:    #0D1F30;
+  --navy2:   #1A3347;
+  --bg:      #EEF2F7;
+  --surf:    #ffffff;
+  --bdr:     #D1DCE5;
+  --txt:     #0D1F30;
+  --muted:   #637B8D;
+  --green:   #1DB863;
+  --gbg:     #E8F9EE;
+  --amber:   #E8960A;
+  --abg:     #FEF4DC;
+  --red:     #D93025;
+  --rbg:     #FDECEA;
+  --blue:    #1A73E8;
+  --bbg:     #E8F1FD;
+  --radius:  8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--txt);
+  min-height: 100vh;
+}
+
+/* Importar Inter si está disponible */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+
+button { cursor: pointer; font-family: inherit; }
+input, select { font-family: inherit; }
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bdr); border-radius: 3px; }
