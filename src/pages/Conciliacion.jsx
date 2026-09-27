@@ -196,8 +196,58 @@ export default function Conciliacion() {
       {/* UPLOAD */}
       {!results && (
         <div style={{ background: 'var(--surf)', borderRadius: 10, border: '1px solid var(--bdr)', padding: 24, marginBottom: 20 }}>
-          {/* Config */}
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* INSTRUCCIONES DE ORIGEN */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: '.72rem', fontWeight: 700, color: 'var(--txt2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }}>
+              ¿De dónde viene cada archivo?
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[
+                {
+                  num: '1', icon: '📊', titulo: 'Mayor (K1)',
+                  origen: 'Autodealer',
+                  pasos: ['K1 → Sistema de Finanzas', 'Resumen de Cuenta', 'Filtrar: Tarjeta Habitualista', 'Exportar Excel 5.0'],
+                },
+                {
+                  num: '2', icon: '💳', titulo: 'Movimientos de Cuenta',
+                  origen: 'Web Tarjeta Habitualista',
+                  pasos: ['Ingresar a la web de TH', 'Movimientos de cuenta', 'Seleccionar período', 'Exportar / Descargar'],
+                },
+                {
+                  num: '3', icon: '📋', titulo: 'Operaciones de Pago',
+                  origen: 'Web Tarjeta Habitualista',
+                  pasos: ['Ingresar a la web de TH', 'Operaciones de Pago', 'Seleccionar período', 'Exportar / Descargar'],
+                },
+              ].map(item => (
+                <div key={item.num} style={{ background: '#111', border: '1px solid var(--bdr)', borderRadius: 8, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--green)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.72rem', fontWeight: 900, flexShrink: 0 }}>
+                      {item.num}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '.8rem', fontWeight: 700 }}>{item.icon} {item.titulo}</div>
+                      <div style={{ fontSize: '.68rem', color: 'var(--txt3)' }}>Origen: {item.origen}</div>
+                    </div>
+                  </div>
+                  {item.pasos.map((p, i) => (
+                    <div key={i} style={{ fontSize: '.7rem', color: 'var(--txt2)', padding: '2px 0 2px 8px', borderLeft: '2px solid var(--bdr2)' }}>
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* SEPARADOR */}
+          <div style={{ borderTop: '1px solid var(--bdr)', margin: '0 0 20px', position: 'relative' }}>
+            <span style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', background: 'var(--surf)', padding: '0 12px', fontSize: '.68rem', color: 'var(--txt3)', textTransform: 'uppercase', letterSpacing: '.07em' }}>
+              Subí los archivos acá abajo
+            </span>
+          </div>
+
+          {/* Config empresa + período */}
+          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr', gap: 16, marginBottom: 20 }}>
             <div>
               <div style={{ fontSize: '.7rem', fontWeight: 600, color: 'var(--txt2)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>Empresa *</div>
               <select
@@ -220,10 +270,10 @@ export default function Conciliacion() {
           {/* Zonas de carga */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
             {[
-              { label: 'Mayor Autodealer (K1)', icon: '📊', slot: 0 },
-              { label: 'Movimientos de Cuenta TH', icon: '💳', slot: 1 },
-              { label: 'Operaciones de Pago TH', icon: '📋', slot: 2 },
-            ].map(({ label, icon, slot }) => (
+              { label: 'Mayor Autodealer (K1)', icon: '📊', slot: 0, hint: 'Archivo del K1 · Export Excel 5.0' },
+              { label: 'Movimientos de Cuenta TH', icon: '💳', slot: 1, hint: 'Columnas: Cod ref · Tipo · Monto' },
+              { label: 'Operaciones de Pago TH', icon: '📋', slot: 2, hint: 'Columnas: Nro operación · Total · Motivo' },
+            ].map(({ label, icon, slot, hint }) => (
               <div
                 key={slot}
                 onDragOver={e => e.preventDefault()}
@@ -239,10 +289,11 @@ export default function Conciliacion() {
                   style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                   onChange={e => e.target.files[0] && readFile(e.target.files[0], slot)} />
                 <div style={{ fontSize: '1.6rem', marginBottom: 8 }}>{icon}</div>
-                <div style={{ fontSize: '.8rem', fontWeight: 600, marginBottom: 5 }}>{label}</div>
-                {fileNames[slot]
+                <div style={{ fontSize: '.8rem', fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: '.68rem', color: 'var(--txt3)', marginBottom: 8 }}>{hint}</div>
+                {workbooks[slot]
                   ? <div style={{ fontSize: '.7rem', color: 'var(--green)', fontWeight: 600 }}>✓ {fileNames[slot]}</div>
-                  : <div style={{ fontSize: '.7rem', color: 'var(--txt2)' }}>Arrastrá o hacé click</div>
+                  : <div style={{ fontSize: '.7rem', color: 'var(--txt2)' }}>Arrastrá o hacé click para subir</div>
                 }
               </div>
             ))}
