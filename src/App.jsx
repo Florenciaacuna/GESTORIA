@@ -95,21 +95,7 @@ function Sidebar({ session }) {
           </NavLink>
         ))}
 
-        {/* SEPARADOR */}
-        <div style={{ borderTop: '1px solid var(--bdr)', margin: '12px 0' }} />
-        <div style={{ fontSize: '.6rem', color: 'var(--txt3)', letterSpacing: '.1em', textTransform: 'uppercase', padding: '0 18px 8px' }}>
-          Próximamente
-        </div>
-        {[
-          { label: 'Análisis SQL',   icon: '🗄️' },
-          { label: 'Python / Colab', icon: '🐍' },
-          { label: 'Reportes',       icon: '📈' },
-        ].map(({ label, icon }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 18px', fontSize: '.78rem', color: 'var(--txt3)', cursor: 'default' }}>
-            <span style={{ fontSize: '.9rem' }}>{icon}</span>
-            {label}
-          </div>
-        ))}
+
       </nav>
 
       {/* USER */}
