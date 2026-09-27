@@ -2,92 +2,118 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState('')
 
   async function handleLogin(e) {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message === 'Invalid login credentials'
-      ? 'Email o contraseña incorrectos'
-      : error.message)
+    if (error) setError(
+      error.message === 'Invalid login credentials'
+        ? 'Email o contraseña incorrectos'
+        : error.message
+    )
     setLoading(false)
   }
 
-  const s = {
-    page: {
-      minHeight: '100vh', background: '#EEF2F7',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    },
-    card: {
-      background: '#fff', borderRadius: 16, padding: 40,
-      width: 380, boxShadow: '0 4px 24px rgba(0,0,0,.08)',
-    },
-    logo: {
-      width: 48, height: 48, background: '#0D1F30', borderRadius: 10,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: 900, fontSize: 18, color: '#fff', marginBottom: 20,
-    },
-    title: { fontSize: '1.2rem', fontWeight: 700, marginBottom: 4, color: '#0D1F30' },
-    sub: { fontSize: '.82rem', color: '#637B8D', marginBottom: 28 },
-    label: { fontSize: '.78rem', fontWeight: 600, color: '#0D1F30', display: 'block', marginBottom: 6 },
-    input: {
-      width: '100%', border: '1.5px solid #D1DCE5', borderRadius: 7,
-      padding: '10px 12px', fontSize: '.875rem', outline: 'none',
-      marginBottom: 16, color: '#0D1F30',
-      transition: 'border-color .15s',
-    },
-    btn: {
-      width: '100%', background: '#0D1F30', color: '#fff',
-      border: 'none', borderRadius: 7, padding: '11px 0',
-      fontSize: '.875rem', fontWeight: 600, cursor: 'pointer',
-      marginTop: 4,
-    },
-    error: {
-      background: '#FDECEA', color: '#8b1413', border: '1px solid #f5a4a0',
-      borderRadius: 6, padding: '10px 12px', fontSize: '.78rem', marginBottom: 16,
-    },
-  }
-
   return (
-    <div style={s.page}>
-      <div style={s.card}>
-        <div style={s.logo}>GR</div>
-        <div style={s.title}>Conciliación TH</div>
-        <div style={s.sub}>Grupo Randazzo · Área Finanzas</div>
+    <div style={{
+      minHeight: '100vh', background: '#0D0D0D',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{ width: 380 }}>
 
-        <form onSubmit={handleLogin}>
-          {error && <div style={s.error}>{error}</div>}
-
-          <label style={s.label}>Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={s.input}
-            placeholder="nombre@gruporandazzo.com.ar"
-            required
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <img
+            src="/logo.png"
+            alt="Grupo Randazzo"
+            style={{ height: 56, width: 'auto', display: 'inline-block' }}
+            onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
           />
+          <div style={{ display: 'none', fontSize: '1.4rem', fontWeight: 900, color: '#B5CC2E', letterSpacing: '.05em' }}>
+            GRUPO RANDAZZO
+          </div>
+          <div style={{ fontSize: '.75rem', color: '#555', marginTop: 8, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            Gestoría · Área Finanzas
+          </div>
+        </div>
 
-          <label style={s.label}>Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={s.input}
-            placeholder="••••••••"
-            required
-          />
+        {/* Card */}
+        <div style={{
+          background: '#1A1A1A', borderRadius: 12,
+          border: '1px solid #252525', padding: '32px 28px',
+        }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 4 }}>Iniciar sesión</div>
+          <div style={{ fontSize: '.78rem', color: '#666', marginBottom: 24 }}>
+            Acceso restringido al equipo de finanzas
+          </div>
 
-          <button type="submit" style={s.btn} disabled={loading}>
-            {loading ? 'Ingresando…' : 'Ingresar'}
-          </button>
-        </form>
+          <form onSubmit={handleLogin}>
+            {error && (
+              <div style={{
+                background: 'rgba(229,57,53,0.1)', border: '1px solid rgba(229,57,53,0.3)',
+                color: '#ff6b6b', borderRadius: 6, padding: '10px 12px',
+                fontSize: '.78rem', marginBottom: 16,
+              }}>
+                {error}
+              </div>
+            )}
+
+            <label style={{ fontSize: '.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="nombre@gruporandazzo.com.ar"
+              required
+              style={{
+                width: '100%', background: '#111', border: '1px solid #2a2a2a',
+                color: '#fff', borderRadius: 7, padding: '10px 12px',
+                fontSize: '.85rem', marginBottom: 16, outline: 'none',
+              }}
+              onFocus={e => e.target.style.borderColor = '#B5CC2E'}
+              onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+            />
+
+            <label style={{ fontSize: '.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.05em' }}>
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              style={{
+                width: '100%', background: '#111', border: '1px solid #2a2a2a',
+                color: '#fff', borderRadius: 7, padding: '10px 12px',
+                fontSize: '.85rem', marginBottom: 24, outline: 'none',
+              }}
+              onFocus={e => e.target.style.borderColor = '#B5CC2E'}
+              onBlur={e => e.target.style.borderColor = '#2a2a2a'}
+            />
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', background: '#B5CC2E', color: '#000',
+                border: 'none', borderRadius: 7, padding: '11px 0',
+                fontSize: '.875rem', fontWeight: 700, cursor: 'pointer',
+                opacity: loading ? .6 : 1,
+              }}
+            >
+              {loading ? 'Ingresando…' : 'Ingresar'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
