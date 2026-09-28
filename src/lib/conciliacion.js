@@ -77,6 +77,20 @@ export function parseMayor(wb) {
 
   if (headerIdx < 0) throw new Error('No se encontró el encabezado del Mayor. Verificá que sea el archivo correcto.')
 
+  // El header "Comprobante" puede estar desalineado por celdas fusionadas en el Excel.
+  // Escaneamos las primeras filas de datos para encontrar la columna real
+  // donde aparecen RM-, OP-, RC- o SALDO (patron confiable del Mayor de Autodealer).
+  let iD_real = -1
+  for (let i = headerIdx + 1; i < Math.min(headerIdx + 30, rows.length); i++) {
+    const row = rows[i]
+    for (let j = 0; j < row.length; j++) {
+      const v = String(row[j] || '')
+      if (v.match(/^(RM|OP|RC|SALDO)/i)) { iD_real = j; break }
+    }
+    if (iD_real >= 0) break
+  }
+  if (iD_real >= 0) iD = iD_real  // datos reales ganan sobre header desalineado
+
   const items = []
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i]
