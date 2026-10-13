@@ -48,6 +48,7 @@ export function detectFileType(wb) {
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
   for (let i = 0; i < Math.min(15, rows.length); i++) {
     const s = rows[i].join('|').toLowerCase()
+    if (s.includes('lote rendicion') || s.includes('num_minuta')) return 'rendiciones'
     if (s.includes('nro. operacion') || (s.includes('nro de pago') && s.includes('canal'))) return 'operaciones'
     if (s.includes('cod referencia') && s.includes('tipo')) return 'mov'
     if (s.includes('comprobante') && (s.includes('pagos') || s.includes('dep'))) return 'mayor'
@@ -299,3 +300,85 @@ export function buildMatches(mayorItems, movItems, operaciones, fechaBuffer = 10
     mayorFiltrado,
   }
 }
+
+// ── PARSER: RENDICIONES (Autodealer) ──────────────────────
+// Archivo CSV disfrazado de .xls con separador ;
+// Columnas: SISTEMA | NUM_MINUTA | GESTOR | FECHA ALTA MINUTA | FECHA RENDICION | LOTE RENDICION | REAL RENDIDO
+// Retorna un mapa { "NUM_MINUTA": "LOTE RENDICION" } filtrado por empresa
+
+export function parseRendiciones(wb, empresa) {
+  const ws  = wb.Sheets[wb.SheetNames[0]]
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null })
+
+  // Buscar la fila de headers (contiene LOTE RENDICION o NUM_MINUTA)
+  let headerIdx = 0
+  for (let i = 0; i < Math.min(5, raw.length); i++) {
+    const s = (raw[i] || []).join('|').toUpperCase()
+    if (s.includes('NUM_MINUTA') || s.includes('LOTE')) { headerIdx = i; break }
+  }
+
+  const hdr      = (raw[headerIdx] || []).map(h => String(h || '').trim().toUpperCase())
+  const iSistema = hdr.findIndex(h => h.includes('SISTEMA'))
+  const iMinuta  = hdr.findIndex(h => h.includes('NUM_MINUTA') || h.includes('MINUTA'))
+  const iLote    = hdr.findIndex(h => h.includes('LOTE'))
+  const iMonto   = hdr.findIndex(h => h.includes('REAL') || h.includes('RENDIDO'))
+
+  // mapa minuta → { lote, monto, sistema }
+  const mapa = {}
+  const empresaNorm = (empresa || '').toUpperCase().trim()
+
+  for (let i = headerIdx + 1; i < raw.length; i++) {
+    const row     = raw[i]
+    if (!row || !row[iMinuta]) continue
+
+    const sistema = String(row[iSistema] || '').toUpperCase().trim()
+    const minuta  = String(row[iMinuta]  || '').trim()
+    const lote    = String(row[iLote]    || '').trim()
+    const monto   = parseFloat(row[iMonto]) || 0
+
+    if (!minuta || !lote) continue
+
+    // Si se pasa empresa, filtrar; si no se pasa, incluir todo
+    if (empresaNorm && sistema !== empresaNorm) continue
+
+    mapa[minuta] = { lote, monto, sistema }
+  }
+
+  return mapa   // { "413713": { lote: "29801", monto: 344834.60, sistema: "CIARA" } }
+}
+
+// ── MATCHING CON RENDICIONES ───────────────────────────────
+// Versión extendida de buildMatches que recibe el mapa de rendiciones
+// y asigna el lote automáticamente a cada pago usando el número de minuta
+
+export function buildMatchesConLotes(mayorItems, movItems, operaciones, rendiciones = {}, fechaBuffer = 10) {
+  const resultado = buildMatches(mayorItems, movItems, operaciones, fechaBuffer)
+
+  let loteados = 0
+
+  resultado.pagos = resultado.pagos.map(pago => {
+    const minuta = pago.op?.minuta || ''
+    if (!minuta) return pago
+
+    const rendicion = rendiciones[minuta]
+    if (!rendicion) return pago
+
+    loteados++
+    return {
+      ...pago,
+      lote:  rendicion.lote,
+      estado: Math.abs(pago.diferencia) > 50 ? 'revisar' : 'ok',
+      _loteAutoAsignado: true,
+    }
+  })
+
+  resultado._loteados    = loteados
+  resultado._sinLote     = resultado.pagos.filter(p => !p.lote).length
+  resultado._conRendicion = Object.keys(rendiciones).length
+
+  return resultado
+}
+
+// Nota: detectFileType actualizado para reconocer Rendiciones
+// El archivo de rendiciones tiene header: SISTEMA;NUM_MINUTA;GESTOR;FECHA ALTA MINUTA;FECHA RENDICION;LOTE RENDICION;REAL RENDIDO
+// SheetJS lo lee como una fila con esas columnas. Se detecta por 'lote rendicion' o 'num_minuta'.
