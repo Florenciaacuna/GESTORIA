@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 import {
-  detectFileType, parseMayor, parseMov, parseOperaciones, buildMatches,
+  detectFileType, parseMayor, parseMov, parseOperaciones, parseRendiciones, buildMatchesConLotes,
   formatDate, formatMonto,
 } from '../lib/conciliacion'
 
@@ -39,8 +39,8 @@ export default function Conciliacion() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  const [workbooks,    setWorkbooks]    = useState([null, null, null])
-  const [fileNames,    setFileNames]    = useState(['', '', ''])
+  const [workbooks,    setWorkbooks]    = useState([null, null, null, null])
+  const [fileNames,    setFileNames]    = useState(['', '', '', ''])
   const [empresa,      setEmpresa]      = useState('')
   const [periodoDesde, setPeriodoDesde] = useState('')
   const [periodoHasta, setPeriodoHasta] = useState('')
@@ -88,7 +88,8 @@ export default function Conciliacion() {
   async function procesar() {
     setProcessing(true)
     try {
-      const res = buildMatches(parseMayor(workbooks[0]), parseMov(workbooks[1]), parseOperaciones(workbooks[2]))
+      const rendiciones = workbooks[3] ? parseRendiciones(workbooks[3], empresa) : {}
+      const res = buildMatchesConLotes(parseMayor(workbooks[0]), parseMov(workbooks[1]), parseOperaciones(workbooks[2]), rendiciones)
       setResults(res)
       setActiveTab(0)
     } catch (err) { alert('Error: ' + err.message) }
@@ -155,19 +156,125 @@ export default function Conciliacion() {
     if (!results) return
     const { depositos, pagos, pendMayor, pendCredits, pendDebits } = results
     const wb = XLSX.utils.book_new()
-    const ws1 = XLSX.utils.aoa_to_sheet([
-      ['Tipo','Ref. Mayor','Fecha Mayor','Monto Mayor','Fecha TH','Descripción TH','Monto TH','Minuta','Lote','Estado'],
-      ...depositos.map(r => ['Depósito', r.mayor.referencia, formatDate(r.mayor.fecha), r.mayor.monto, formatDate(r.th.fecha), r.th.descripcion, r.th.monto, '', '', 'conciliado']),
-      ...pagos.map(r => ['Pago', r.mayor.referencia, formatDate(r.mayor.fecha), r.mayor.monto, formatDate(r.th.fecha), r.th.descripcion, r.th.monto, r.op?.minuta || '', r.lote || '', r.estado]),
-    ])
-    XLSX.utils.book_append_sheet(wb, ws1, 'Conciliado')
-    const ws2 = XLSX.utils.aoa_to_sheet([
-      ['Origen','Tipo','Fecha','Monto','Descripción','Ref','Motivo'],
+
+    // ── HOJA 1: DEB-CRED ─────────────────────────────────────
+    // Replica la hoja DEB-CRED del archivo de conciliación acumulada.
+    // Columna G = MOVIMIENTO: para CREDIT que matchearon con un OP se pone el número de OP.
+    // Para CREDIT sin match: "OP A CONCILIAR". Para DEBIT: vacío.
+    const debCredRows = [
+      ['Cod Referencia', 'Fecha Acreditación', 'Descripción', 'Tipo', 'Monto', 'Disponible', 'MOVIMIENTO (OP)'],
+      // CREDITs conciliados → columna MOVIMIENTO = número de OP del Mayor
+      ...depositos.map(r => [
+        r.th.codRef || '',
+        formatDate(r.th.fecha),
+        r.th.descripcion || '',
+        'CREDIT',
+        r.th.monto,
+        '',
+        r.mayor.referencia,   // ← acá va el OP-XXXXXX en la columna MOVIMIENTO
+      ]),
+      // DEBITs conciliados → columna MOVIMIENTO vacía
+      ...pagos.map(r => [
+        r.th.codRef || '',
+        formatDate(r.th.fecha),
+        r.th.descripcion || '',
+        'DEBIT',
+        r.th.monto,
+        '',
+        '',
+      ]),
+      // DEBITs sin match
+      ...pendDebits.map(r => [
+        r.codRef || '',
+        formatDate(r.fecha),
+        r.descripcion || '',
+        'DEBIT',
+        r.monto,
+        '',
+        '',
+      ]),
+      // CREDITs sin match → "OP A CONCILIAR"
+      ...pendCredits.map(r => [
+        r.codRef || '',
+        formatDate(r.fecha),
+        r.descripcion || '',
+        'CREDIT',
+        r.monto,
+        '',
+        'OP A CONCILIAR',
+      ]),
+    ]
+    const ws1 = XLSX.utils.aoa_to_sheet(debCredRows)
+    ws1['!cols'] = [{wch:16},{wch:14},{wch:60},{wch:8},{wch:18},{wch:16},{wch:18}]
+    XLSX.utils.book_append_sheet(wb, ws1, 'DEB-CRED')
+
+    // ── HOJA 2: MOV (Operaciones de Pago) ────────────────────
+    // Replica la hoja MOV. Columna P = LOTE asignado por el usuario.
+    const movRows = [
+      ['Nro Operación', 'Nro Pago', 'Fecha', 'Total', 'Secc. RPA', 'Tarjetahabiente',
+       'Estado', 'Motivo Pago', 'Minuta', 'Diferencia', 'LOTE'],
+      ...pagos.map(r => [
+        r.op?.nroOp   || '',
+        r.op?.nroPago || '',
+        formatDate(r.th.fecha),
+        r.th.monto,
+        r.op?.seccRPA          || '',
+        r.op?.tarjetahabiente  || '',
+        r.op?.estado           || '',
+        r.op?.motivoPago       || '',
+        r.op?.minuta           || '',
+        r.diferencia,
+        r.lote || '',           // ← columna LOTE (P) que se va completando desde CELER
+      ]),
+      ...pendDebits.map(r => [
+        '', r.pagoNum || '',
+        formatDate(r.fecha), r.monto,
+        '', '', '', '', '', '', '',
+      ]),
+    ]
+    const ws2 = XLSX.utils.aoa_to_sheet(movRows)
+    ws2['!cols'] = [{wch:14},{wch:12},{wch:12},{wch:16},{wch:28},{wch:30},{wch:12},{wch:55},{wch:12},{wch:14},{wch:12}]
+    XLSX.utils.book_append_sheet(wb, ws2, 'MOV')
+
+    // ── HOJA 3: MAYOR ─────────────────────────────────────────
+    // Replica las filas relevantes del Mayor con columna L completada:
+    //   OP → columna L = "OP-XXXXXX"
+    //   RM → columna L = número de lote (cuando esté asignado) o número TH
+    const mayorRows = [
+      ['Fecha', 'Conciliado', 'Comprobante', 'Pagos', 'Depósitos', 'Balance', '',
+       '', '', '', '', 'COL L (Ref / Lote)'],
+      ...depositos.map(r => [
+        formatDate(r.mayor.fecha), '', r.mayor.descripcion || '',
+        '', r.mayor.monto, '', '', '', '', '', '',
+        r.mayor.referencia,       // ← OP-XXXXXX en columna L
+      ]),
+      ...pagos.map(r => [
+        formatDate(r.mayor.fecha), '', r.mayor.descripcion || '',
+        r.mayor.monto, '', '', '', '', '', '', '',
+        r.lote || r.mayor.referencia || '',  // ← Lote si está asignado, sino ref TH
+      ]),
+      ...pendMayor.map(r => [
+        formatDate(r.item.fecha), '', r.item.descripcion || '',
+        r.item.tipo === 'RM' ? r.item.monto : '',
+        r.item.tipo === 'OP' ? r.item.monto : '',
+        '', '', '', '', '', '',
+        '⚠ SIN MATCH EN TH',
+      ]),
+    ]
+    const ws3 = XLSX.utils.aoa_to_sheet(mayorRows)
+    ws3['!cols'] = [{wch:14},{wch:14},{wch:65},{wch:18},{wch:18},{wch:18},{wch:4},{wch:4},{wch:4},{wch:4},{wch:4},{wch:20}]
+    XLSX.utils.book_append_sheet(wb, ws3, 'Mayor')
+
+    // ── HOJA 4: Pendientes ────────────────────────────────────
+    const pendRows = [
+      ['Origen', 'Tipo', 'Fecha', 'Monto', 'Descripción', 'Ref', 'Motivo'],
       ...pendMayor.map(p => ['Mayor', p.item.tipo, formatDate(p.item.fecha), p.item.monto, p.item.descripcion, p.item.referencia, p.razon]),
       ...pendCredits.map(p => ['TH', 'CREDIT', formatDate(p.fecha), p.monto, p.descripcion, p.codRef, 'OP a conciliar']),
       ...pendDebits.map(p => ['TH', 'DEBIT', formatDate(p.fecha), p.monto, p.descripcion, p.codRef, '']),
-    ])
-    XLSX.utils.book_append_sheet(wb, ws2, 'Pendientes')
+    ]
+    const ws4 = XLSX.utils.aoa_to_sheet(pendRows)
+    XLSX.utils.book_append_sheet(wb, ws4, 'Pendientes')
+
     XLSX.writeFile(wb, `Conciliacion_${empresa}_${new Date().toISOString().slice(0,10)}.xlsx`)
   }
 
@@ -273,6 +380,7 @@ export default function Conciliacion() {
               { label: 'Mayor Autodealer (K1)', icon: '📊', slot: 0, hint: 'Archivo del K1 · Export Excel 5.0' },
               { label: 'Movimientos de Cuenta TH', icon: '💳', slot: 1, hint: 'Columnas: Cod ref · Tipo · Monto' },
               { label: 'Operaciones de Pago TH', icon: '📋', slot: 2, hint: 'Columnas: Nro operación · Total · Motivo' },
+            { label: 'Rendiciones CELER', icon: '🗂️', slot: 3, hint: 'Opcional · Asigna lotes automáticamente' },
             ].map(({ label, icon, slot, hint }) => (
               <div
                 key={slot}
@@ -301,12 +409,16 @@ export default function Conciliacion() {
 
           <button
             onClick={procesar}
-            disabled={!workbooks.every(Boolean) || !empresa || processing}
+            disabled={!workbooks[0] || !workbooks[1] || !workbooks[2] || !empresa || processing}
             style={{ ...btnGreen, opacity: (!workbooks.every(Boolean) || !empresa || processing) ? .4 : 1 }}
           >
             {processing ? '⏳ Procesando…' : '⚡ Conciliar'}
           </button>
-          {!empresa && <span style={{ marginLeft: 12, fontSize: '.75rem', color: 'var(--txt2)' }}>Seleccioná la empresa primero</span>}
+          {(!empresa || !workbooks[0] || !workbooks[1] || !workbooks[2]) && (
+            <span style={{ marginLeft: 12, fontSize: '.75rem', color: 'var(--txt2)' }}>
+              {!empresa ? 'Seleccioná la empresa primero' : 'Cargá los 3 archivos obligatorios'}
+            </span>
+          )}
         </div>
       )}
 
@@ -321,7 +433,7 @@ export default function Conciliacion() {
           setActiveTab={setActiveTab}
           onGuardar={guardar}
           onExport={exportExcel}
-          onNueva={() => { setResults(null); setWorkbooks([null,null,null]); setFileNames(['','','']); setConcilId(null); navigate('/nueva') }}
+          onNueva={() => { setResults(null); setWorkbooks([null,null,null,null]); setFileNames(['','','','']); setConcilId(null); navigate('/nueva') }}
           onUpdateLote={updateLote}
         />
       )}
