@@ -374,13 +374,16 @@ export default function Conciliacion() {
             ))}
           </div>
 
-          {/* Zonas de carga */}
+          {/* ARCHIVOS POR EMPRESA */}
+          <div style={{ fontSize: '.7rem', fontWeight: 700, color: 'var(--txt2)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ background: 'var(--green)', color: '#000', borderRadius: 4, padding: '1px 7px', fontSize: '.65rem' }}>1 por empresa</span>
+            Se descargan individualmente para la empresa seleccionada
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
             {[
-              { label: 'Mayor Autodealer (K1)', icon: '📊', slot: 0, hint: 'Archivo del K1 · Export Excel 5.0' },
-              { label: 'Movimientos de Cuenta TH', icon: '💳', slot: 1, hint: 'Columnas: Cod ref · Tipo · Monto' },
-              { label: 'Operaciones de Pago TH', icon: '📋', slot: 2, hint: 'Columnas: Nro operación · Total · Motivo' },
-            { label: 'Rendiciones CELER', icon: '🗂️', slot: 3, hint: 'Opcional · Asigna lotes automáticamente' },
+              { label: 'Mayor Autodealer (K1)', icon: '📊', slot: 0, hint: 'K1 → Finanzas → Resumen de Cuenta → Export Excel 5.0' },
+              { label: 'Movimientos de Cuenta TH', icon: '💳', slot: 1, hint: 'Web TH → Movimientos de Cuenta → Exportar' },
+              { label: 'Operaciones de Pago TH', icon: '📋', slot: 2, hint: 'Web TH → Operaciones de Pago → Exportar' },
             ].map(({ label, icon, slot, hint }) => (
               <div
                 key={slot}
@@ -389,22 +392,59 @@ export default function Conciliacion() {
                 style={{
                   border: `1.5px dashed ${workbooks[slot] ? 'var(--green)' : 'var(--bdr2)'}`,
                   background: workbooks[slot] ? 'var(--green-dim)' : '#111',
-                  borderRadius: 10, padding: '22px 16px', textAlign: 'center',
+                  borderRadius: 10, padding: '20px 16px', textAlign: 'center',
                   cursor: 'pointer', position: 'relative',
                 }}
               >
                 <input type="file" accept=".xlsx,.xls"
                   style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                   onChange={e => e.target.files[0] && readFile(e.target.files[0], slot)} />
-                <div style={{ fontSize: '1.6rem', marginBottom: 8 }}>{icon}</div>
+                <div style={{ fontSize: '1.5rem', marginBottom: 7 }}>{icon}</div>
                 <div style={{ fontSize: '.8rem', fontWeight: 700, marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: '.68rem', color: 'var(--txt3)', marginBottom: 8 }}>{hint}</div>
+                <div style={{ fontSize: '.67rem', color: 'var(--txt3)', marginBottom: 8 }}>{hint}</div>
                 {workbooks[slot]
                   ? <div style={{ fontSize: '.7rem', color: 'var(--green)', fontWeight: 600 }}>✓ {fileNames[slot]}</div>
-                  : <div style={{ fontSize: '.7rem', color: 'var(--txt2)' }}>Arrastrá o hacé click para subir</div>
+                  : <div style={{ fontSize: '.7rem', color: 'var(--txt2)' }}>Arrastrá o hacé click</div>
                 }
               </div>
             ))}
+          </div>
+
+          {/* RENDICIONES CRM — un solo archivo para todo el período */}
+          <div style={{ border: '1px solid var(--bdr2)', borderRadius: 10, padding: '16px 18px', marginBottom: 20, background: '#0e0e0e' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ background: '#1A73E8', color: '#fff', borderRadius: 4, padding: '1px 7px', fontSize: '.65rem', fontWeight: 700 }}>Todo el período</span>
+              <div>
+                <div style={{ fontSize: '.78rem', fontWeight: 700 }}>Rendiciones CRM</div>
+                <div style={{ fontSize: '.68rem', color: 'var(--txt2)' }}>Un solo archivo · Incluye todas las empresas · CRM → Rendiciones → Reporte del período</div>
+              </div>
+            </div>
+            <div
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) readFile(f, 3) }}
+              style={{
+                border: `1.5px dashed ${workbooks[3] ? 'var(--green)' : '#333'}`,
+                background: workbooks[3] ? 'var(--green-dim)' : '#111',
+                borderRadius: 8, padding: '16px', textAlign: 'center',
+                cursor: 'pointer', position: 'relative',
+              }}
+            >
+              <input type="file" accept=".xlsx,.xls,.csv"
+                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                onChange={e => e.target.files[0] && readFile(e.target.files[0], 3)} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                <span style={{ fontSize: '1.4rem' }}>🗂️</span>
+                <div style={{ textAlign: 'left' }}>
+                  {workbooks[3]
+                    ? <div style={{ fontSize: '.78rem', color: 'var(--green)', fontWeight: 700 }}>✓ {fileNames[3]} — Lotes asignados automáticamente</div>
+                    : <>
+                        <div style={{ fontSize: '.78rem', fontWeight: 600 }}>Arrastrá el archivo o hacé click para subir</div>
+                        <div style={{ fontSize: '.68rem', color: 'var(--txt2)', marginTop: 2 }}>Opcional · Si no lo subís, podés asignar los lotes a mano</div>
+                      </>
+                  }
+                </div>
+              </div>
+            </div>
           </div>
 
           <button
